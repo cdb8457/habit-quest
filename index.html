@@ -719,6 +719,76 @@
             background: rgba(0, 212, 255, 0.2);
         }
 
+        /* Manage Habits Styles */
+        .manage-habit-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+
+        .manage-habit-info {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .manage-habit-emoji {
+            font-size: 28px;
+        }
+
+        .manage-habit-name {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .manage-habit-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 18px;
+        }
+
+        .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        .icon-btn.delete {
+            background: rgba(255, 51, 102, 0.2);
+            border-color: rgba(255, 51, 102, 0.4);
+        }
+
+        .icon-btn.delete:hover {
+            background: rgba(255, 51, 102, 0.3);
+        }
+
+        .icon-btn.edit {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: rgba(0, 212, 255, 0.4);
+        }
+
+        .icon-btn.edit:hover {
+            background: rgba(0, 212, 255, 0.3);
+        }
+
         /* Responsive */
         @media (min-width: 768px) {
             .mobile-nav {
@@ -888,7 +958,11 @@
                         </div>
                     </div>
 
-                    <button class="add-habit-btn" onclick="resetData()" style="background: var(--gradient-secondary); margin-top: 20px;">
+                    <button class="add-habit-btn" onclick="openManageHabitsModal()" style="margin-bottom: 12px;">
+                        ⚙️ Manage Habits
+                    </button>
+
+                    <button class="add-habit-btn" onclick="resetData()" style="background: var(--gradient-secondary);">
                         Reset All Data
                     </button>
                 </div>
@@ -940,11 +1014,57 @@
         </div>
     </div>
 
+    <!-- Manage Habits Modal -->
+    <div id="manageHabitsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Manage Habits</h3>
+                <button class="close-btn" onclick="closeManageHabitsModal()">×</button>
+            </div>
+            
+            <div id="manageHabitsList" class="habit-list" style="max-height: 60vh; overflow-y: auto;">
+                <!-- Habits will be inserted here -->
+            </div>
+
+            <button class="add-habit-btn" onclick="closeManageHabitsModal(); openAddHabitModal();">
+                + Add New Habit
+            </button>
+        </div>
+    </div>
+
+    <!-- Edit Habit Modal -->
+    <div id="editHabitModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Edit Habit</h3>
+                <button class="close-btn" onclick="closeEditHabitModal()">×</button>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Habit Name</label>
+                <input type="text" id="editHabitNameInput" class="form-input">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Choose Emoji</label>
+                <div class="emoji-picker" id="editEmojiPicker">
+                    <!-- Emojis will be inserted here -->
+                </div>
+            </div>
+
+            <button class="add-habit-btn" onclick="saveEditedHabit()">Save Changes</button>
+            <button class="add-habit-btn" onclick="closeEditHabitModal()" style="background: var(--gradient-secondary); margin-top: 12px;">
+                Cancel
+            </button>
+        </div>
+    </div>
+
     <script>
         // Data structure
         let habits = [];
         let habitHistory = {}; // { habitId: { 'YYYY-MM-DD': true/false } }
         let selectedEmoji = '⭐';
+        let editingHabitId = null;
 
         const defaultEmojis = ['⏰', '🚭', '🔞', '🔥', '🚫', '❌', '🎯', '📚', '💪', '🏃', '🧘', '💧', '🥗', '😴', '📝', '🎨', '🎵', '🧠', '📖', '🌅', '🌙', '☕', '🥤', '🏋️'];
 
@@ -1297,6 +1417,114 @@
             renderHabits();
             updateAllStats();
             closeAddHabitModal();
+        }
+
+        // Manage Habits Modal
+        function openManageHabitsModal() {
+            document.getElementById('manageHabitsModal').classList.add('active');
+            renderManageHabits();
+        }
+
+        function closeManageHabitsModal() {
+            document.getElementById('manageHabitsModal').classList.remove('active');
+        }
+
+        function renderManageHabits() {
+            const manageList = document.getElementById('manageHabitsList');
+            
+            if (habits.length === 0) {
+                manageList.innerHTML = `
+                    <div style="text-align: center; padding: 40px 20px; color: var(--text-dim);">
+                        <div style="font-size: 48px; margin-bottom: 16px;">📝</div>
+                        <p>No habits yet. Add your first habit to get started!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            manageList.innerHTML = habits.map(habit => `
+                <div class="manage-habit-item">
+                    <div class="manage-habit-info">
+                        <div class="manage-habit-emoji">${habit.emoji}</div>
+                        <div class="manage-habit-name">${habit.name}</div>
+                    </div>
+                    <div class="manage-habit-actions">
+                        <button class="icon-btn edit" onclick="openEditHabitModal(${habit.id})">✏️</button>
+                        <button class="icon-btn delete" onclick="deleteHabit(${habit.id})">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Edit Habit Modal
+        function openEditHabitModal(habitId) {
+            const habit = habits.find(h => h.id === habitId);
+            if (!habit) return;
+            
+            editingHabitId = habitId;
+            document.getElementById('editHabitNameInput').value = habit.name;
+            selectedEmoji = habit.emoji;
+            
+            renderEditEmojiPicker();
+            document.getElementById('editHabitModal').classList.add('active');
+            closeManageHabitsModal();
+        }
+
+        function closeEditHabitModal() {
+            document.getElementById('editHabitModal').classList.remove('active');
+            editingHabitId = null;
+            openManageHabitsModal();
+        }
+
+        function renderEditEmojiPicker() {
+            const picker = document.getElementById('editEmojiPicker');
+            picker.innerHTML = defaultEmojis.map(emoji => 
+                `<div class="emoji-option ${emoji === selectedEmoji ? 'selected' : ''}" onclick="selectEditEmoji('${emoji}')">${emoji}</div>`
+            ).join('');
+        }
+
+        function selectEditEmoji(emoji) {
+            selectedEmoji = emoji;
+            renderEditEmojiPicker();
+        }
+
+        function saveEditedHabit() {
+            const name = document.getElementById('editHabitNameInput').value.trim();
+            
+            if (!name) {
+                alert('Please enter a habit name');
+                return;
+            }
+            
+            const habitIndex = habits.findIndex(h => h.id === editingHabitId);
+            if (habitIndex !== -1) {
+                habits[habitIndex].name = name;
+                habits[habitIndex].emoji = selectedEmoji;
+                saveData();
+                renderHabits();
+                closeEditHabitModal();
+            }
+        }
+
+        // Delete Habit
+        function deleteHabit(habitId) {
+            const habit = habits.find(h => h.id === habitId);
+            if (!habit) return;
+            
+            const confirmMsg = `Are you sure you want to delete "${habit.name}"?\n\nThis will also delete all history for this habit. This cannot be undone.`;
+            
+            if (confirm(confirmMsg)) {
+                // Remove from habits array
+                habits = habits.filter(h => h.id !== habitId);
+                
+                // Remove from history
+                delete habitHistory[habitId];
+                
+                saveData();
+                renderHabits();
+                renderManageHabits();
+                updateAllStats();
+            }
         }
 
         // View switching
